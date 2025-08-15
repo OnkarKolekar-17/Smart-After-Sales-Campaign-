@@ -3,10 +3,31 @@ Logging configuration for the Smart After-Sales Campaign system
 """
 
 import os
+import re
 import logging
 import logging.config
 from datetime import datetime
 from config.settings import settings
+
+class EmojiStrippingFormatter(logging.Formatter):
+    """Custom formatter that removes emojis for console output"""
+    
+    def format(self, record):
+        # Remove emojis using regex
+        emoji_pattern = re.compile("["
+                                 u"\U0001f600-\U0001f64f"  # emoticons
+                                 u"\U0001f300-\U0001f5ff"  # symbols & pictographs
+                                 u"\U0001f680-\U0001f6ff"  # transport & map
+                                 u"\U0001f1e0-\U0001f1ff"  # flags (iOS)
+                                 u"\U00002702-\U000027b0"
+                                 u"\U000024c2-\U0001f251"
+                                 u"\U0001f900-\U0001f9ff"  # Supplemental Symbols and Pictographs
+                                 "]+", flags=re.UNICODE)
+        
+        # Format the message normally first
+        formatted = super().format(record)
+        # Then remove emojis
+        return emoji_pattern.sub('', formatted)
 
 def setup_logging():
     """Setup logging configuration"""
@@ -26,7 +47,11 @@ def setup_logging():
         'disable_existing_loggers': False,
         'formatters': {
             'detailed': {
-                'format': '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s',
+                'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                'datefmt': '%Y-%m-%d %H:%M:%S'
+            },
+            'console': {
+                'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                 'datefmt': '%Y-%m-%d %H:%M:%S'
             },
             'simple': {
@@ -41,7 +66,7 @@ def setup_logging():
             'console': {
                 'class': 'logging.StreamHandler',
                 'level': log_level,
-                'formatter': 'detailed',
+                'formatter': 'console',
                 'stream': 'ext://sys.stdout'
             },
             'file_all': {
@@ -142,6 +167,41 @@ def setup_logging():
     }
     
     logging.config.dictConfig(logging_config)
+    
+    # Apply emoji stripping formatter to ALL console handlers system-wide
+    emoji_formatter = EmojiStrippingFormatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # Apply to all loggers and their handlers - this fixes the issue completely
+    def apply_emoji_formatter_to_all_handlers():
+        # Get all existing loggers
+        for name in logging.Logger.manager.loggerDict:
+            logger = logging.getLogger(name)
+            for handler in logger.handlers[:]:
+                if isinstance(handler, logging.StreamHandler) and hasattr(handler.stream, 'name'):
+                    if handler.stream.name in ['<stdout>', '<stderr>']:
+                        handler.setFormatter(emoji_formatter)
+        
+        # Also apply to root logger handlers
+        root_logger = logging.getLogger()
+        for handler in root_logger.handlers[:]:
+            if isinstance(handler, logging.StreamHandler) and hasattr(handler.stream, 'name'):
+                if handler.stream.name in ['<stdout>', '<stderr>']:
+                    handler.setFormatter(emoji_formatter)
+    
+    apply_emoji_formatter_to_all_handlers()
+    
+    # Set encoding for console output to handle Unicode gracefully  
+    try:
+        import sys
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass  # Ignore encoding issues on some systems
     
     # Set up custom logger for application startup
     logger = logging.getLogger('system.startup')
