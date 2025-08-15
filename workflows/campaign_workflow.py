@@ -34,22 +34,39 @@ class CampaignWorkflow:
         workflow = StateGraph(dict)
         
         # Add nodes (agents)
+        workflow.add_node("customer_targeting", self._targeting_node)
         workflow.add_node("weather_analysis", self._weather_node)
         workflow.add_node("holiday_analysis", self._holiday_node)
-        workflow.add_node("customer_targeting", self._targeting_node)
         workflow.add_node("vehicle_lifecycle_analysis", self._vehicle_lifecycle_node)
         workflow.add_node("campaign_generation", self._campaign_generation_node)
         workflow.add_node("email_sending", self._email_sending_node)
         workflow.add_node("finalize", self._finalize_node)
         
-        # Set entry point based on trigger (will be handled in run_campaign)
+        # Set entry point
         workflow.set_entry_point("customer_targeting")
         
         # Add conditional edges based on campaign trigger
-        workflow.add_edge("customer_targeting", "weather_analysis")
-        workflow.add_edge("weather_analysis", "holiday_analysis") 
-        workflow.add_edge("holiday_analysis", "vehicle_lifecycle_analysis")
+        workflow.add_conditional_edges(
+            "customer_targeting",
+            self._route_after_targeting,
+            {
+                "weather": "weather_analysis",
+                "holiday": "holiday_analysis", 
+                "lifecycle": "vehicle_lifecycle_analysis",
+                "scheduled": "vehicle_lifecycle_analysis"  # Default to lifecycle for scheduled
+            }
+        )
+        
+        # Weather trigger path
+        workflow.add_edge("weather_analysis", "campaign_generation")
+        
+        # Holiday trigger path
+        workflow.add_edge("holiday_analysis", "campaign_generation")
+        
+        # Lifecycle trigger path
         workflow.add_edge("vehicle_lifecycle_analysis", "campaign_generation")
+        
+        # Common final path
         workflow.add_edge("campaign_generation", "email_sending")
         workflow.add_edge("email_sending", "finalize")
         workflow.add_edge("finalize", END)
@@ -117,34 +134,39 @@ class CampaignWorkflow:
                 summary=f"Workflow failed: {str(e)}"
             )
     
+    def _route_after_targeting(self, state: Dict[str, Any]) -> str:
+        """Route to appropriate analysis based on campaign trigger"""
+        trigger = state.get('campaign_trigger', 'scheduled')
+        
+        logger.info(f"🔄 Routing workflow for trigger: {trigger}")
+        
+        if trigger == 'weather':
+            return "weather"
+        elif trigger == 'holiday':
+            return "holiday"
+        elif trigger == 'lifecycle':
+            return "lifecycle"
+        else:  # scheduled or any other trigger defaults to lifecycle
+            return "lifecycle"
+    
     def _weather_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Weather analysis node - skip for lifecycle campaigns"""
+        """Weather analysis node - only for weather triggers"""
         state['current_step'] = 'weather_analysis'
         if 'completed_steps' not in state:
             state['completed_steps'] = []
         state['completed_steps'].append('weather_analysis')
         
-        # Skip weather analysis for lifecycle-only campaigns
-        if state.get('campaign_trigger') == 'lifecycle':
-            logger.info("Skipping weather analysis for lifecycle campaign")
-            state['weather_data'] = None
-            return state
-        
+        logger.info("🌤️ Executing weather-specific campaign analysis")
         return self.weather_agent.process(state)
     
     def _holiday_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Holiday analysis node - skip for lifecycle campaigns"""
+        """Holiday analysis node - only for holiday triggers"""
         state['current_step'] = 'holiday_analysis'
         if 'completed_steps' not in state:
             state['completed_steps'] = []
         state['completed_steps'].append('holiday_analysis')
         
-        # Skip holiday analysis for lifecycle-only campaigns  
-        if state.get('campaign_trigger') == 'lifecycle':
-            logger.info("Skipping holiday analysis for lifecycle campaign")
-            state['holiday_data'] = None
-            return state
-        
+        logger.info("🎉 Executing holiday-specific campaign analysis")
         return self.holiday_agent.process(state)
     
     def _targeting_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -157,12 +179,13 @@ class CampaignWorkflow:
         return self.targeting_agent.process(state)
     
     def _vehicle_lifecycle_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Vehicle lifecycle analysis node"""
+        """Vehicle lifecycle analysis node - only for lifecycle triggers"""
         state['current_step'] = 'vehicle_lifecycle_analysis'
         if 'completed_steps' not in state:
             state['completed_steps'] = []
         state['completed_steps'].append('vehicle_lifecycle_analysis')
         
+        logger.info("🚗 Executing lifecycle-specific campaign analysis")
         return self.vehicle_lifecycle_agent.process(state)
     
     def _campaign_generation_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
