@@ -137,8 +137,7 @@ class CampaignWorkflow:
     def _route_after_targeting(self, state: Dict[str, Any]) -> str:
         """Route to appropriate analysis based on campaign trigger"""
         trigger = state.get('campaign_trigger', 'scheduled')
-        
-        logger.info(f"🔄 Routing workflow for trigger: {trigger}")
+        logger.info(f"Routing workflow for trigger: {trigger}")
         
         if trigger == 'weather':
             return "weather"
@@ -156,7 +155,7 @@ class CampaignWorkflow:
             state['completed_steps'] = []
         state['completed_steps'].append('weather_analysis')
         
-        logger.info("🌤️ Executing weather-specific campaign analysis")
+        logger.info("Executing weather-specific campaign analysis")
         return self.weather_agent.process(state)
     
     def _holiday_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -166,7 +165,7 @@ class CampaignWorkflow:
             state['completed_steps'] = []
         state['completed_steps'].append('holiday_analysis')
         
-        logger.info("🎉 Executing holiday-specific campaign analysis")
+        logger.info("Executing holiday-specific campaign analysis")
         return self.holiday_agent.process(state)
     
     def _targeting_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -212,12 +211,22 @@ class CampaignWorkflow:
         if 'completed_steps' not in state:
             state['completed_steps'] = []
         state['completed_steps'].append('finalize')
+
+        # Handle different campaign result structures
+        campaign_results = state.get('campaign_results', [])
+        campaigns_created = len(state.get('campaigns_created', []))
+        campaigns_sent = len(state.get('campaigns_sent', []))
+        
+        # For location-based processing, campaigns_sent might be in campaign_results
+        if campaign_results and not campaigns_sent:
+            campaigns_sent = state.get('total_campaigns_sent', len(campaign_results))
+            campaigns_created = campaigns_sent  # Assume created = sent for location-based
         
         # Log final statistics
         logger.info(f"Workflow {state.get('workflow_id')} finalized:")
         logger.info(f"- Total targeted: {state.get('total_targeted', 0)}")
-        logger.info(f"- Campaigns created: {len(state.get('campaigns_created', []))}")
-        logger.info(f"- Campaigns sent: {len(state.get('campaigns_sent', []))}")
+        logger.info(f"- Campaigns created: {campaigns_created}")
+        logger.info(f"- Campaigns sent: {campaigns_sent}")
         logger.info(f"- Errors: {len(state.get('errors', []))}")
         
         return state
@@ -226,8 +235,17 @@ class CampaignWorkflow:
         """Generate a summary of the workflow execution"""
         
         total_targeted = final_state.get('total_targeted', 0)
+        
+        # Handle different campaign result structures
+        campaign_results = final_state.get('campaign_results', [])
         campaigns_created = len(final_state.get('campaigns_created', []))
         campaigns_sent = len(final_state.get('campaigns_sent', []))
+        
+        # For location-based processing, campaigns_sent might be in campaign_results
+        if campaign_results and not campaigns_sent:
+            campaigns_sent = final_state.get('total_campaigns_sent', len(campaign_results))
+            campaigns_created = campaigns_sent  # Assume created = sent for location-based
+        
         errors = len(final_state.get('errors', []))
         
         weather_data = final_state.get('weather_data')
@@ -237,7 +255,11 @@ class CampaignWorkflow:
         summary_parts = []
         
         # Basic metrics
-        summary_parts.append(f"Campaign executed for {final_state.get('location', 'Unknown location')}")
+        location = final_state.get('location', 'Unknown location')
+        if location == 'PROCESS_ALL_LOCATIONS':
+            location = 'All Locations (processed individually)'
+        
+        summary_parts.append(f"Campaign executed for {location}")
         summary_parts.append(f"Targeted {total_targeted} customers")
         summary_parts.append(f"Created {campaigns_created} campaigns")
         summary_parts.append(f"Sent {campaigns_sent} emails")

@@ -1,5 +1,5 @@
 """
-Logging configuration for the Smart After-Sales Campaign system
+Logging configuration for the Smart After-Sales Campaign system.
 """
 
 import os

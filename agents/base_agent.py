@@ -57,8 +57,21 @@ class BaseAgent(ABC):
     
     def _log_step(self, message: str, level: str = "info"):
         """Log agent steps with consistent formatting"""
+        import re
+        # Remove emojis for clean console output
+        emoji_pattern = re.compile("["
+                                 u"\U0001f600-\U0001f64f"  # emoticons
+                                 u"\U0001f300-\U0001f5ff"  # symbols & pictographs
+                                 u"\U0001f680-\U0001f6ff"  # transport & map
+                                 u"\U0001f1e0-\U0001f1ff"  # flags (iOS)
+                                 u"\U00002702-\U000027b0"
+                                 u"\U000024c2-\U0001f251"
+                                 u"\U0001f900-\U0001f9ff"  # Supplemental Symbols and Pictographs
+                                 "]+", flags=re.UNICODE)
+        clean_message = emoji_pattern.sub('', message).strip()
+        
         log_func = getattr(logger, level.lower(), logger.info)
-        log_func(f"[{self.agent_name}] {message}")
+        log_func(f"[{self.agent_name}] {clean_message}")
     
     def _validate_input(self, state: Dict[str, Any], required_fields: list) -> bool:
         """Validate that required fields are present in state"""

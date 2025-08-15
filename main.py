@@ -7,6 +7,7 @@ Multi-agent AI system for generating and sending targeted automotive campaigns
 import os
 import sys
 import logging
+import time
 from datetime import datetime
 import argparse
 from dotenv import load_dotenv
@@ -53,43 +54,112 @@ def setup_environment():
 def run_campaign(location: str = None, trigger: str = "scheduled"):
     """Run a single campaign"""
     
-    if not location:
-        location = settings.weather.default_location
-    
-    logger.info(f"Starting campaign for location: {location}, trigger: {trigger}")
-    
-    try:
+    if trigger == 'lifecycle':
+        # Lifecycle campaigns don't use location
+        logger.info(f"Starting lifecycle campaign (service-need-based, location-independent), trigger: {trigger}")
+        location_label = "Service-Based Targeting"
+        campaign_location = None
+        
+        # Initialize workflow
+        workflow = CampaignWorkflow()
+        
+        # Execute campaign
+        result = workflow.run_campaign(location=campaign_location, campaign_trigger=trigger)
+        
+    elif trigger in ['weather', 'holiday']:
+        # Weather/holiday campaigns: iterate through each location like multi_location_campaigns.py
+        logger.info(f"Starting {trigger} campaign (will process each location individually)")
+        location_label = "Location-by-Location Processing"
+        
+        # Get locations using same logic as multi_location_campaigns.py
+        from services.location_service import LocationService
+        location_service = LocationService()
+        locations = location_service.filter_locations_by_criteria(min_customers=1)
+        
+        logger.info(f"Running {trigger} campaigns for {len(locations)} locations: {locations}")
+        
+        # Initialize aggregated results
+        total_targeted = 0
+        total_campaigns_created = 0
+        total_campaigns_sent = 0
+        all_errors = []
+        execution_start = time.time()
+        workflow_id = None
+        
+        for loc in locations:
+            try:
+                logger.info(f"Processing {trigger} campaign for {loc}")
+                
+                # Initialize workflow for this location
+                workflow = CampaignWorkflow()
+                
+                # Execute campaign for this specific location
+                result = workflow.run_campaign(location=loc, campaign_trigger=trigger)
+                
+                # Store first workflow ID for reference
+                if not workflow_id:
+                    workflow_id = result.workflow_id
+                
+                # Aggregate results
+                total_targeted += result.total_targeted
+                total_campaigns_created += result.campaigns_created
+                total_campaigns_sent += result.campaigns_sent
+                all_errors.extend(result.errors or [])
+                
+                logger.info(f"Completed {loc}: {result.total_targeted} customers, {result.campaigns_sent} campaigns sent")
+                
+            except Exception as e:
+                logger.error(f"Error processing {trigger} campaign for {loc}: {e}")
+                all_errors.append(f"Error in {loc}: {e}")
+        
+        # Create aggregated result object
+        from workflows.states import WorkflowResult
+        execution_time = time.time() - execution_start
+        
+        result = WorkflowResult(
+            workflow_id=workflow_id or f"multi-{trigger}-{int(time.time())}",
+            status="success" if not all_errors else "partial_success",
+            total_targeted=total_targeted,
+            campaigns_created=total_campaigns_created,
+            campaigns_sent=total_campaigns_sent,
+            execution_time=execution_time,
+            errors=all_errors,
+            summary=f"Multi-location {trigger} campaign: {len(locations)} locations, {total_targeted} customers, {total_campaigns_sent} campaigns sent"
+        )
+        
+    else:
+        # Default single location campaign
+        logger.info(f"Starting single location campaign, trigger: {trigger}")
+        location_label = f"Single Location ({location or 'default'})"
+        
         # Initialize workflow
         workflow = CampaignWorkflow()
         
         # Execute campaign
         result = workflow.run_campaign(location=location, campaign_trigger=trigger)
-        
-        # Log results
-        logger.info("=" * 60)
-        logger.info("CAMPAIGN EXECUTION RESULTS")
-        logger.info("=" * 60)
-        logger.info(f"Workflow ID: {result.workflow_id}")
-        logger.info(f"Status: {result.status}")
-        logger.info(f"Location: {location}")
-        logger.info(f"Execution Time: {result.execution_time:.2f} seconds")
-        logger.info(f"Total Targeted: {result.total_targeted}")
-        logger.info(f"Campaigns Created: {result.campaigns_created}")
-        logger.info(f"Campaigns Sent: {result.campaigns_sent}")
-        
-        if result.errors:
-            logger.info(f"Errors Encountered: {len(result.errors)}")
-            for error in result.errors:
-                logger.error(f"  - {error}")
-        
-        logger.info(f"Summary: {result.summary}")
-        logger.info("=" * 60)
-        
-        return result
-        
-    except Exception as e:
-        logger.error(f"Campaign execution failed: {e}")
-        return None
+    
+    # Log results
+    logger.info("=" * 60)
+    logger.info("CAMPAIGN EXECUTION RESULTS")
+    logger.info("=" * 60)
+    logger.info(f"Workflow ID: {result.workflow_id}")
+    logger.info(f"Status: {result.status}")
+    logger.info(f"Targeting Strategy: {location_label}")
+    logger.info(f"Campaign Type: {trigger}")
+    logger.info(f"Execution Time: {result.execution_time:.2f} seconds")
+    logger.info(f"Total Targeted: {result.total_targeted}")
+    logger.info(f"Campaigns Created: {result.campaigns_created}")
+    logger.info(f"Campaigns Sent: {result.campaigns_sent}")
+    
+    if result.errors:
+        logger.info(f"Errors Encountered: {len(result.errors)}")
+        for error in result.errors:
+            logger.error(f"  - {error}")
+    
+    logger.info(f"Summary: {result.summary}")
+    logger.info("=" * 60)
+    
+    return result
 
 def run_scheduled_campaigns():
     """Run scheduled campaigns for multiple locations"""
@@ -513,7 +583,15 @@ def main():
     # Execute based on mode
     try:
         if args.mode == 'single':
-            location = args.location or settings.weather.default_location
+            # For lifecycle campaigns, location is not needed
+            if args.trigger == 'lifecycle':
+                location = None  # Lifecycle campaigns ignore location
+                logger.info(f"Running lifecycle campaign (service-need-based, location-independent)")
+            else:
+                # For weather/holiday campaigns, location is ignored - all locations targeted
+                location = "ALL_LOCATIONS"  # Placeholder - system will target all locations
+                logger.info(f"Running {args.trigger} campaign (targeting all locations from database)")
+            
             run_campaign(location=location, trigger=args.trigger)
             
         elif args.mode == 'batch':

@@ -43,25 +43,26 @@ class TargetingAgent(BaseAgent):
         try:
             self._log_step("Starting customer targeting analysis")
             
-            # Get location and campaign context
-            location = state.get('location', 'Mumbai')
+            # Get campaign context
             campaign_trigger = state.get('campaign_trigger', 'scheduled')
             weather_data = state.get('weather_data')
             holiday_data = state.get('holiday_data')
+            location = state.get('location')
             
             # Generate targeting criteria using LLM
             targeting_criteria = self._generate_targeting_criteria(
                 campaign_trigger, weather_data, holiday_data
             )
             
-            # Add location to criteria only for weather and holiday campaigns
-            if campaign_trigger in ['weather', 'holiday']:
-                targeting_criteria.location = location
-                self._log_step(f"Using location-based targeting for {campaign_trigger} campaign: {location}")
-            else:
-                # For lifecycle campaigns, don't use location - use service-need criteria
+            # Set location based on campaign type
+            if campaign_trigger == 'lifecycle':
+                # Lifecycle campaigns ignore location entirely
                 targeting_criteria.location = None
-                self._log_step(f"Using service-need-based targeting for {campaign_trigger} campaign (ignoring location)")
+                self._log_step(f"Lifecycle campaign: using service-need-based targeting (location irrelevant)")
+            else:
+                # Weather/holiday campaigns use the provided location
+                targeting_criteria.location = location
+                self._log_step(f"Weather/Holiday campaign: targeting {location}")
             
             # Apply targeting criteria to get customer segments
             customer_segments = self._segment_customers(targeting_criteria, campaign_trigger)
@@ -164,16 +165,31 @@ class TargetingAgent(BaseAgent):
             return []
     
     def _location_based_targeting(self, cur, criteria: TargetingCriteria) -> List[CustomerData]:
-        """Location-based targeting for weather and holiday campaigns"""
+        """Location-based targeting for weather and holiday campaigns - targets specific location"""
         
-        # Test location-specific customers
-        if criteria.location:
-            cur.execute("SELECT COUNT(*) FROM customers WHERE preferred_location ILIKE %s", [f"%{criteria.location}%"])
-            result = cur.fetchone()
-            location_count = result['count'] if isinstance(result, dict) else result[0]
-            self._log_step(f"Customers in {criteria.location}: {location_count}")
+        location = criteria.location
+        if not location:
+            self._log_step("Warning: No location specified for weather/holiday campaign", "warning")
+            return []
         
-        # Build query for location-based targeting
+        # For weather/holiday campaigns, target customers from the specific location only
+        self._log_step(f"Targeting customers from {location} only")
+        
+        # Get customer count for this specific location
+        cur.execute("""
+            SELECT COUNT(DISTINCT c.id) 
+            FROM customers c 
+            WHERE c.preferred_location = %s
+        """, (location,))
+        result = cur.fetchone()
+        location_customers = result['count'] if isinstance(result, dict) else result[0]
+        self._log_step(f"Total customers in {location}: {location_customers}")
+        
+        if location_customers == 0:
+            self._log_step(f"No customers found in {location}")
+            return []
+        
+        # Build query for specific location targeting
         query = """
         SELECT DISTINCT
             c.id as customer_id,
@@ -192,23 +208,13 @@ class TargetingAgent(BaseAgent):
             v.mileage
         FROM customers c
         LEFT JOIN vehicles v ON c.id = v.customer_id
-        WHERE 1=1
+        WHERE c.preferred_location = %s
+        ORDER BY c.id
         """
         
-        params = []
+        self._log_step(f"Executing location-specific query for {location}")
         
-        # Add location filter if specified (primary filter)
-        if criteria.location:
-            query += " AND c.preferred_location ILIKE %s"
-            params.append(f"%{criteria.location}%")
-        
-        # Simplified ordering
-        query += " ORDER BY c.id"
-        
-        self._log_step(f"Executing location-based query: {query}")
-        self._log_step(f"Query parameters: {params}")
-        
-        cur.execute(query, params)
+        cur.execute(query, (location,))
         results = cur.fetchall()
         
         return self._process_customer_results(results, cur)
