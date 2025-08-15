@@ -1,0 +1,138 @@
+[
+  {
+    "name": "Republic Day",
+    "date": "2025-01-26",
+    "type": "National Holiday",
+    "cultural_significance": "Celebrating the Indian Constitution and national pride",
+    "travel_impact": "Medium",
+    "campaign_themes": ["patriotism", "long weekend", "road trips", "vehicle safety"]
+  },
+  {
+    "name": "Maha Shivratri",
+    "date": "2025-02-26",
+    "type": "Religious Festival",
+    "cultural_significance": "Major Hindu festival dedicated to Lord Shiva",
+    "travel_impact": "High",
+    "campaign_themes": ["spiritual journey", "temple visits", "night travel", "vehicle blessing"]
+  },
+  {
+    "name": "Holi",
+    "date": "2025-03-14",
+    "type": "Major Festival",
+    "cultural_significance": "Festival of colors, spring, and new beginnings",
+    "travel_impact": "High",
+    "campaign_themes": ["colors", "spring cleaning", "vehicle wash", "celebration", "family gatherings"]
+  },
+  {
+    "name": "Good Friday",
+    "date": "2025-04-18",
+    "type": "Religious Holiday",
+    "cultural_significance": "Christian holy day commemorating crucifixion of Jesus",
+    "travel_impact": "Medium",
+    "campaign_themes": ["reflection", "family time", "travel", "preparation"]
+  },
+  {
+    "name": "Easter Sunday",
+    "date": "2025-04-20",
+    "type": "Religious Festival",
+    "cultural_significance": "Christian celebration of resurrection",
+    "travel_impact": "High",
+    "campaign_themes": ["renewal", "family gatherings", "spring travel", "new beginnings"]
+  },
+  {
+    "name": "Ramadan Eid (Eid ul-Fitr)",
+    "date": "2025-03-31",
+    "type": "Major Religious Festival",
+    "cultural_significance": "End of Ramadan, celebration and giving",
+    "travel_impact": "High",
+    "campaign_themes": ["charity", "family reunions", "travel", "blessings", "new clothes"]
+  },
+  {
+    "name": "Independence Day",
+    "date": "2025-08-15",
+    "type": "National Holiday",
+    "cultural_significance": "India's independence from British rule",
+    "travel_impact": "Medium",
+    "campaign_themes": ["freedom", "patriotism", "national pride", "road trips"]
+  },
+  {
+    "name": "Janmashtami",
+    "date": "2025-08-26",
+    "type": "Religious Festival",
+    "cultural_significance": "Birth of Lord Krishna",
+    "travel_impact": "High",
+    "campaign_themes": ["devotion", "temple visits", "midnight celebrations", "spiritual journey"]
+  },
+  {
+    "name": "Ganesh Chaturthi",
+    "date": "2025-08-29",
+    "type": "Major Festival",
+    "cultural_significance": "Celebration of Lord Ganesha, remover of obstacles",
+    "travel_impact": "High",
+    "campaign_themes": ["new beginnings", "obstacle removal", "processions", "community celebrations"]
+  },
+  {
+    "name": "Gandhi Jayanti",
+    "date": "2025-10-02",
+    "type": "National Holiday",
+    "cultural_significance": "Birth anniversary of Mahatma Gandhi",
+    "travel_impact": "Low",
+    "campaign_themes": ["peace", "non-violence", "service", "cleanliness"]
+  },
+  {
+    "name": "Dussehra",
+    "date": "2025-10-22",
+    "type": "Major Festival",
+    "cultural_significance": "Victory of good over evil, Lord Rama's victory",
+    "travel_impact": "High",
+    "campaign_themes": ["victory", "new purchases", "long journeys", "vehicle protection", "righteousness"]
+  },
+  {
+    "name": "Karva Chauth",
+    "date": "2025-11-01",
+    "type": "Traditional Festival",
+    "cultural_significance": "Married women fast for husband's long life",
+    "travel_impact": "Medium",
+    "campaign_themes": ["love", "marriage", "family", "traditional values", "celebration"]
+  },
+  {
+    "name": "Diwali",
+    "date": "2025-11-01",
+    "type": "Major Festival",
+    "cultural_significance": "Festival of lights, prosperity, and new beginnings",
+    "travel_impact": "High",
+    "campaign_themes": ["prosperity", "new beginnings", "family travel", "vehicle blessing", "lights", "wealth"]
+  },
+  {
+    "name": "Bhai Dooj",
+    "date": "2025-11-03",
+    "type": "Traditional Festival",
+    "cultural_significance": "Celebration of brother-sister bond",
+    "travel_impact": "High",
+    "campaign_themes": ["family bonds", "siblings", "travel", "gifts", "protection"]
+  },
+  {
+    "name": "Guru Nanak Jayanti",
+    "date": "2025-11-15",
+    "type": "Religious Festival",
+    "cultural_significance": "Birth anniversary of Guru Nanak, founder of Sikhism",
+    "travel_impact": "Medium",
+    "campaign_themes": ["spirituality", "gurudwara visits", "community service", "equality"]
+  },
+  {
+    "name": "Christmas",
+    "date": "2025-12-25",
+    "type": "Major Religious Festival",
+    "cultural_significance": "Birth of Jesus Christ, celebration of love and giving",
+    "travel_impact": "High",
+    "campaign_themes": ["gifts", "family gatherings", "winter travel", "celebration", "love", "giving"]
+  },
+  {
+    "name": "New Year's Eve",
+    "date": "2025-12-31",
+    "type": "Celebration",
+    "cultural_significance": "End of year celebration and new beginnings",
+    "travel_impact": "High",
+    "campaign_themes": ["new beginnings", "resolutions", "party travel", "safety", "celebration"]
+  }
+]
