@@ -54,11 +54,17 @@ class TargetingAgent(BaseAgent):
                 campaign_trigger, weather_data, holiday_data
             )
             
-            # Add location to criteria
-            targeting_criteria.location = location
+            # Add location to criteria only for weather and holiday campaigns
+            if campaign_trigger in ['weather', 'holiday']:
+                targeting_criteria.location = location
+                self._log_step(f"Using location-based targeting for {campaign_trigger} campaign: {location}")
+            else:
+                # For lifecycle campaigns, don't use location - use service-need criteria
+                targeting_criteria.location = None
+                self._log_step(f"Using service-need-based targeting for {campaign_trigger} campaign (ignoring location)")
             
             # Apply targeting criteria to get customer segments
-            customer_segments = self._segment_customers(targeting_criteria)
+            customer_segments = self._segment_customers(targeting_criteria, campaign_trigger)
             
             # Update state with targeted customers
             state['targeting_criteria'] = targeting_criteria
@@ -131,8 +137,8 @@ class TargetingAgent(BaseAgent):
                 warranty_expiry_days=90
             )
     
-    def _segment_customers(self, criteria: TargetingCriteria) -> List[CustomerData]:
-        """Segment customers based on targeting criteria"""
+    def _segment_customers(self, criteria: TargetingCriteria, campaign_trigger: str) -> List[CustomerData]:
+        """Segment customers based on targeting criteria and campaign type"""
         
         try:
             conn = get_db_connection()
@@ -147,102 +153,214 @@ class TargetingAgent(BaseAgent):
             customer_count = result['count'] if isinstance(result, dict) else result[0]
             self._log_step(f"Total customers in database: {customer_count}")
             
-            # Test location-specific customers
-            if criteria.location:
-                cur.execute("SELECT COUNT(*) FROM customers WHERE preferred_location ILIKE %s", [f"%{criteria.location}%"])
-                result = cur.fetchone()
-                location_count = result['count'] if isinstance(result, dict) else result[0]
-                self._log_step(f"Customers in {criteria.location}: {location_count}")
-            
-            # Build simplified query to get all customers with vehicles in the specified location
-            query = """
-            SELECT DISTINCT
-                c.id as customer_id,
-                c.name,
-                c.email,
-                c.phone,
-                c.preferred_location,
-                c.created_at as purchase_date,
-                v.id as vehicle_id,
-                v.make,
-                v.model,
-                v.year,
-                v.last_service_date,
-                v.next_service_due,
-                v.warranty_end,
-                v.mileage
-            FROM customers c
-            LEFT JOIN vehicles v ON c.id = v.customer_id
-            WHERE 1=1
-            """
-            
-            params = []
-            
-            # Add location filter if specified (primary filter)
-            if criteria.location:
-                query += " AND c.preferred_location ILIKE %s"
-                params.append(f"%{criteria.location}%")
-            
-            # Simplified ordering
-            query += " ORDER BY c.id"
-            
-            self._log_step(f"Executing query: {query}")
-            self._log_step(f"Query parameters: {params}")
-            
-            cur.execute(query, params)
-            results = cur.fetchall()
-            
-            # Group by customer and aggregate vehicle data
-            customer_dict = {}
-            for row in results:
-                customer_id = row['customer_id']
+            # Different targeting strategies based on campaign type
+            if campaign_trigger in ['weather', 'holiday']:
+                return self._location_based_targeting(cur, criteria)
+            else:
+                return self._service_need_targeting(cur, criteria, campaign_trigger)
                 
-                if customer_id not in customer_dict:
-                    # Helper function to safely convert dates
-                    def safe_date_convert(date_value):
-                        if date_value is None:
-                            return None
-                        if hasattr(date_value, 'isoformat'):
-                            return date_value.isoformat()
-                        return str(date_value)
-                    
-                    customer_dict[customer_id] = CustomerData(
-                        customer_id=customer_id,
-                        name=row['name'],
-                        email=row['email'],
-                        phone=row['phone'],
-                        preferred_location=row['preferred_location'],
-                        city=row['preferred_location'],  # Use preferred_location as city
-                        purchase_date=safe_date_convert(row['purchase_date']),
-                        vehicles=[]
-                    )
-                
-                # Add vehicle data if vehicle exists
-                if row['vehicle_id']:
-                    vehicle_data = {
-                        'vehicle_id': row['vehicle_id'],
-                        'make': row['make'],
-                        'model': row['model'],
-                        'year': row['year'],
-                        'last_service_date': safe_date_convert(row['last_service_date']),
-                        'next_service_due': safe_date_convert(row['next_service_due']),
-                        'warranty_end': safe_date_convert(row['warranty_end']),
-                        'mileage': row['mileage']
-                    }
-                    
-                    customer_dict[customer_id].vehicles.append(vehicle_data)
-            
-            customer_segments = list(customer_dict.values())
-            
-            cur.close()
-            conn.close()
-            
-            self._log_step(f"Segmented {len(customer_segments)} customers with targeting criteria")
-            return customer_segments
-            
         except Exception as e:
             self._log_step(f"Error segmenting customers: {e}", "error")
             return []
+    
+    def _location_based_targeting(self, cur, criteria: TargetingCriteria) -> List[CustomerData]:
+        """Location-based targeting for weather and holiday campaigns"""
+        
+        # Test location-specific customers
+        if criteria.location:
+            cur.execute("SELECT COUNT(*) FROM customers WHERE preferred_location ILIKE %s", [f"%{criteria.location}%"])
+            result = cur.fetchone()
+            location_count = result['count'] if isinstance(result, dict) else result[0]
+            self._log_step(f"Customers in {criteria.location}: {location_count}")
+        
+        # Build query for location-based targeting
+        query = """
+        SELECT DISTINCT
+            c.id as customer_id,
+            c.name,
+            c.email,
+            c.phone,
+            c.preferred_location,
+            c.created_at as purchase_date,
+            v.id as vehicle_id,
+            v.make,
+            v.model,
+            v.year,
+            v.last_service_date,
+            v.next_service_due,
+            v.warranty_end,
+            v.mileage
+        FROM customers c
+        LEFT JOIN vehicles v ON c.id = v.customer_id
+        WHERE 1=1
+        """
+        
+        params = []
+        
+        # Add location filter if specified (primary filter)
+        if criteria.location:
+            query += " AND c.preferred_location ILIKE %s"
+            params.append(f"%{criteria.location}%")
+        
+        # Simplified ordering
+        query += " ORDER BY c.id"
+        
+        self._log_step(f"Executing location-based query: {query}")
+        self._log_step(f"Query parameters: {params}")
+        
+        cur.execute(query, params)
+        results = cur.fetchall()
+        
+        return self._process_customer_results(results, cur)
+    
+    def _service_need_targeting(self, cur, criteria: TargetingCriteria, campaign_trigger: str) -> List[CustomerData]:
+        """Service-need-based targeting for lifecycle campaigns"""
+        
+        self._log_step("Using service-need-based targeting for lifecycle campaign")
+        
+        # Build query for service-need targeting (ignoring location)
+        query = """
+        SELECT DISTINCT
+            c.id as customer_id,
+            c.name,
+            c.email,
+            c.phone,
+            c.preferred_location,
+            c.created_at as purchase_date,
+            v.id as vehicle_id,
+            v.make,
+            v.model,
+            v.year,
+            v.last_service_date,
+            v.next_service_due,
+            v.warranty_end,
+            v.mileage,
+            CASE 
+                WHEN v.next_service_due IS NOT NULL AND v.next_service_due <= CURRENT_DATE THEN 1
+                WHEN v.last_service_date IS NOT NULL AND v.last_service_date < %s THEN 2
+                WHEN v.warranty_end IS NOT NULL AND v.warranty_end <= %s THEN 3
+                ELSE 4
+            END as service_priority
+        FROM customers c
+        LEFT JOIN vehicles v ON c.id = v.customer_id
+        WHERE 1=1
+        """
+        
+        params = []
+        current_date = datetime.now().date()
+        
+        # Add the dates for the service_priority calculation first
+        params.append(current_date - timedelta(days=180))  # 6 months ago for CASE
+        params.append(current_date + timedelta(days=30))   # 30 days from now for CASE
+        
+        # Add service-need filters
+        service_conditions = []
+        
+        # Target customers with overdue services (last service > 6 months ago)
+        service_conditions.append("""
+            (v.last_service_date IS NOT NULL AND v.last_service_date < %s)
+        """)
+        params.append(current_date - timedelta(days=180))  # 6 months ago
+        
+        # Target customers with upcoming service due (next service due within 30 days)
+        service_conditions.append("""
+            (v.next_service_due IS NOT NULL AND v.next_service_due <= %s)
+        """)
+        params.append(current_date + timedelta(days=30))  # 30 days from now
+        
+        # Target customers with expiring warranty (within 90 days)
+        service_conditions.append("""
+            (v.warranty_end IS NOT NULL AND v.warranty_end BETWEEN %s AND %s)
+        """)
+        params.append(current_date)  # Today
+        params.append(current_date + timedelta(days=90))  # 90 days from now
+        
+        # Target high mileage vehicles (> 50,000 km)
+        service_conditions.append("""
+            (v.mileage IS NOT NULL AND v.mileage > %s)
+        """)
+        params.append(50000)
+        
+        # Target vehicles older than 3 years
+        service_conditions.append("""
+            (v.year IS NOT NULL AND v.year <= %s)
+        """)
+        params.append(current_date.year - 3)
+        
+        # Target customers who have never had service
+        service_conditions.append("""
+            (v.last_service_date IS NULL AND v.id IS NOT NULL)
+        """)
+        
+        # Combine all service conditions with OR
+        if service_conditions:
+            query += " AND (" + " OR ".join(service_conditions) + ")"
+        
+        # Order by service priority using the calculated field
+        query += """
+        ORDER BY service_priority, c.id
+        """
+        
+        self._log_step(f"Executing service-need-based query: {query}")
+        self._log_step(f"Query parameters: {params}")
+        
+        cur.execute(query, params)
+        results = cur.fetchall()
+        
+        self._log_step(f"Found {len(results)} customers meeting service-need criteria")
+        
+        return self._process_customer_results(results, cur)
+    
+    def _process_customer_results(self, results, cur) -> List[CustomerData]:
+        """Process customer query results into CustomerData objects"""
+        
+        # Group by customer and aggregate vehicle data
+        customer_dict = {}
+        for row in results:
+            customer_id = row['customer_id']
+            
+            if customer_id not in customer_dict:
+                # Helper function to safely convert dates
+                def safe_date_convert(date_value):
+                    if date_value is None:
+                        return None
+                    if hasattr(date_value, 'isoformat'):
+                        return date_value.isoformat()
+                    return str(date_value)
+                
+                customer_dict[customer_id] = CustomerData(
+                    customer_id=customer_id,
+                    name=row['name'],
+                    email=row['email'],
+                    phone=row['phone'],
+                    preferred_location=row['preferred_location'],
+                    city=row['preferred_location'],  # Use preferred_location as city
+                    purchase_date=safe_date_convert(row['purchase_date']),
+                    vehicles=[]
+                )
+            
+            # Add vehicle data if vehicle exists
+            if row['vehicle_id']:
+                vehicle_data = {
+                    'vehicle_id': row['vehicle_id'],
+                    'make': row['make'],
+                    'model': row['model'],
+                    'year': row['year'],
+                    'last_service_date': safe_date_convert(row['last_service_date']),
+                    'next_service_due': safe_date_convert(row['next_service_due']),
+                    'warranty_end': safe_date_convert(row['warranty_end']),
+                    'mileage': row['mileage']
+                }
+                
+                customer_dict[customer_id].vehicles.append(vehicle_data)
+        
+        customer_segments = list(customer_dict.values())
+        
+        cur.close()
+        cur.connection.close()
+        
+        self._log_step(f"Segmented {len(customer_segments)} customers with targeting criteria")
+        return customer_segments
     
     def _apply_advanced_filters(self, customers: List[CustomerData], criteria: TargetingCriteria) -> List[CustomerData]:
         """Apply additional filtering logic based on business rules"""
