@@ -82,21 +82,48 @@ class VehicleLifecycleAgent(BaseAgent):
         current_date = datetime.now()
         
         for customer in customers:
-            vehicle = customer.get('vehicle', {})
-            if not vehicle:
+            # Handle both dict and Pydantic model structures
+            if hasattr(customer, 'vehicles') and customer.vehicles:
+                # Pydantic model with vehicles list
+                vehicle = customer.vehicles[0] if customer.vehicles else {}
+                vehicle_dict = vehicle.dict() if hasattr(vehicle, 'dict') else vehicle
+            elif hasattr(customer, 'vehicle') and customer.vehicle:
+                # Pydantic model with single vehicle
+                vehicle_dict = customer.vehicle.dict() if hasattr(customer.vehicle, 'dict') else customer.vehicle
+            elif isinstance(customer, dict) and customer.get('vehicle'):
+                # Dictionary structure
+                vehicle_dict = customer.get('vehicle', {})
+            else:
+                continue
+                
+            if not vehicle_dict:
                 continue
                 
             # Calculate vehicle age
-            purchase_date = self._parse_date(vehicle.get('purchase_date'))
+            purchase_date = self._parse_date(vehicle_dict.get('purchase_date') or vehicle_dict.get('registration_date'))
             vehicle_age_years = self._calculate_years_since(purchase_date) if purchase_date else 0
             
             # Get mileage and service data
-            mileage = vehicle.get('mileage', 0)
-            last_service = self._parse_date(vehicle.get('last_service_date'))
-            warranty_end = self._parse_date(vehicle.get('warranty_end'))
+            mileage = vehicle_dict.get('mileage', 0)
+            last_service = self._parse_date(vehicle_dict.get('last_service_date'))
+            warranty_end = self._parse_date(vehicle_dict.get('warranty_end'))
+            
+            # Create standardized customer data structure
+            if isinstance(customer, dict):
+                customer_info = customer
+            else:
+                # Convert Pydantic model to dict
+                customer_info = {
+                    'customer_id': getattr(customer, 'customer_id', None),
+                    'name': getattr(customer, 'name', 'Unknown'),
+                    'email': getattr(customer, 'email', ''),
+                    'phone': getattr(customer, 'phone', ''),
+                    'preferred_location': getattr(customer, 'preferred_location', ''),
+                    'vehicle': vehicle_dict
+                }
             
             customer_data = {
-                'customer': customer,
+                'customer': customer_info,
                 'vehicle_age_years': vehicle_age_years,
                 'mileage': mileage,
                 'days_since_service': self._calculate_days_since(last_service) if last_service else 365
@@ -119,8 +146,10 @@ class VehicleLifecycleAgent(BaseAgent):
                 ownership_segments['high_mileage'].append(customer_data)
             
             # Warranty expiration (within 6 months)
-            if warranty_end and self._days_until_date(warranty_end) <= 180:
-                ownership_segments['warranty_expiring'].append(customer_data)
+            if warranty_end:
+                days_until_expiry = self._days_until_date(warranty_end)
+                if days_until_expiry is not None and days_until_expiry <= 180:
+                    ownership_segments['warranty_expiring'].append(customer_data)
             
             # Service due (over 6 months since last service)
             if customer_data['days_since_service'] > 180:

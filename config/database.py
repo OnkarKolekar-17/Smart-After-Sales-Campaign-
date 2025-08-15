@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'localhost'),
     'database': os.getenv('DB_NAME', 'car_campaigns'),
-    'user': os.getenv('DB_USER', 'postgres'),
-    'password': os.getenv('DB_PASSWORD', 'postgres'),  # Default password
+    'user': os.getenv('DB_USER', 'Retailer'),
+    'password': os.getenv('DB_PASSWORD', 'Kolekar@3234'),  # Default password
     'port': os.getenv('DB_PORT', '5432')
 }
 
@@ -173,12 +173,18 @@ def insert_sample_data(conn):
             VALUES (%s, %s, %s, %s)
         ''', customers_data)
         
-        # Insert sample vehicles
+        # Insert sample vehicles with diverse service scenarios
         vehicles_data = [
-            (1, 'Maruti Suzuki', 'Swift', 2020, 'MA3EJGC26G0123001', '2020-03-15', '2024-10-15', 'Regular Service', '2025-01-15', 45000, '2020-03-15', '2025-03-15'),
-            (2, 'Hyundai', 'i20', 2019, 'HY2EJGC26G0123002', '2019-08-10', '2024-09-20', 'Oil Change', '2024-12-20', 52000, '2019-08-10', '2024-08-10'),
-            (3, 'Tata', 'Nexon', 2021, 'TA4EJGC26G0123003', '2021-01-20', '2024-11-05', 'Regular Service', '2025-02-05', 38000, '2021-01-20', '2026-01-20'),
-            (4, 'Honda', 'City', 2022, 'HO5EJGC26G0123004', '2022-06-12', '2024-12-10', 'Regular Service', '2025-03-10', 28000, '2022-06-12', '2027-06-12'),
+            # High mileage vehicles (50K+ km) needing brake/tire service
+            (1, 'Maruti Suzuki', 'Swift', 2020, 'MA3EJGC26G0123001', '2020-03-15', '2024-05-15', 'Regular Service', '2025-01-15', 75000, '2020-03-15', '2025-03-15'),
+            (2, 'Hyundai', 'i20', 2019, 'HY2EJGC26G0123002', '2019-08-10', '2024-03-20', 'Oil Change', '2024-12-20', 95000, '2019-08-10', '2024-08-10'),
+            
+            # Ultra high mileage vehicles (100K+ km) needing major service
+            (3, 'Tata', 'Nexon', 2018, 'TA4EJGC26G0123003', '2018-01-20', '2024-01-05', 'Basic Service', '2024-07-05', 125000, '2018-01-20', '2023-01-20'),
+            (4, 'Honda', 'City', 2017, 'HO5EJGC26G0123004', '2017-06-12', '2024-02-10', 'Oil Change', '2024-08-10', 145000, '2017-06-12', '2022-06-12'),
+            
+            # Warranty expiring soon (within 6 months)
+            (5, 'Mahindra', 'XUV300', 2023, 'MH6EJGC26G0123005', '2023-02-15', '2024-11-20', 'Regular Service', '2025-05-20', 15000, '2023-02-15', '2025-02-15'),
         ]
         
         cur.executemany('''

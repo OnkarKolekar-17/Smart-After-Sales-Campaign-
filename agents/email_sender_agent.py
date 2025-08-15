@@ -124,69 +124,112 @@ class EmailSenderAgent(BaseAgent):
             
             campaign_records = []
             
-            # Extract campaign data from dictionary
-            campaign_type = campaign_content.get('campaign_type', 'weather') if isinstance(campaign_content, dict) else campaign_content.campaign_type
+            # Extract campaign data
+            campaign_type = campaign_content.get('campaign_type', 'service') if isinstance(campaign_content, dict) else campaign_content.campaign_type
             title = campaign_content.get('title', 'Service Campaign') if isinstance(campaign_content, dict) else campaign_content.title
             content = campaign_content.get('content', '') if isinstance(campaign_content, dict) else campaign_content.content
             subject_line = campaign_content.get('subject_line', 'Service Reminder') if isinstance(campaign_content, dict) else campaign_content.subject_line
             
-            for customer in customers:
-                # Handle customer data structure
-                if isinstance(customer, dict):
+            for customer_data in customers:
+                # Handle lifecycle campaign format with nested customer
+                if isinstance(customer_data, dict) and 'customer' in customer_data:
+                    customer = customer_data['customer']
                     customer_id = customer.get('customer_id')
                     customer_name = customer.get('name', '')
                     customer_email = customer.get('email', '')
-                    vehicles = customer.get('vehicles', [])
-                else:
-                    customer_id = getattr(customer, 'customer_id', None)
-                    customer_name = getattr(customer, 'name', '')
-                    customer_email = getattr(customer, 'email', '')
-                    vehicles = getattr(customer, 'vehicles', [])
+                    vehicle_info = customer.get('vehicle', {})
+                    
+                    if customer_id and customer_email and vehicle_info:
+                        import uuid
+                        unique_campaign_id = str(uuid.uuid4())
+                        vehicle_id = vehicle_info.get('id') or vehicle_info.get('vehicle_id')
+                        
+                        # Insert campaign record
+                        cur.execute("""
+                            INSERT INTO campaigns (
+                                campaign_id, vehicle_id, customer_id, campaign_type, 
+                                campaign_title, subject_line, content, status, 
+                                location, trigger_type
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            RETURNING id
+                        """, (
+                            unique_campaign_id,
+                            vehicle_id,
+                            customer_id,
+                            campaign_type,
+                            title,
+                            subject_line,
+                            content,
+                            'created',
+                            state.get('location', 'Mumbai'),
+                            state.get('campaign_trigger', 'lifecycle')
+                        ))
+                        
+                        db_campaign_id = cur.fetchone()['id']
+                        
+                        campaign_record = {
+                            'campaign_id': unique_campaign_id,
+                            'db_id': db_campaign_id,
+                            'customer_id': customer_id,
+                            'customer_name': customer_name,
+                            'customer_email': customer_email,
+                            'vehicle': vehicle_info,
+                            'personalized_content': self._personalize_content(
+                                campaign_content, customer, vehicle_info
+                            )
+                        }
+                        
+                        campaign_records.append(campaign_record)
                 
-                # Create campaign for each vehicle
-                for vehicle in vehicles:
-                    vehicle_id = vehicle.get('id') if isinstance(vehicle, dict) else vehicle.get('vehicle_id')
+                # Handle direct customer format (fallback)
+                elif isinstance(customer_data, dict):
+                    customer_id = customer_data.get('customer_id')
+                    customer_name = customer_data.get('name', '')
+                    customer_email = customer_data.get('email', '')
+                    vehicles = customer_data.get('vehicles', [])
                     
-                    # Generate unique campaign ID
-                    import uuid
-                    unique_campaign_id = str(uuid.uuid4())
-                    
-                    # Insert campaign record with correct schema
-                    cur.execute("""
-                        INSERT INTO campaigns (
-                            campaign_id, vehicle_id, customer_id, campaign_type, 
-                            campaign_title, subject_line, content, status, 
-                            location, trigger_type
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id
-                    """, (
-                        unique_campaign_id,
-                        vehicle_id,
-                        customer_id,
-                        campaign_type,
-                        title,
-                        subject_line,
-                        content,
-                        'created',
-                        state.get('location', 'Mumbai'),
-                        state.get('campaign_trigger', 'weather')
-                    ))
-                    
-                    db_campaign_id = cur.fetchone()['id']
-                    
-                    campaign_record = {
-                        'campaign_id': unique_campaign_id,
-                        'db_id': db_campaign_id,
-                        'customer_id': customer_id,
-                        'customer_name': customer_name,
-                        'customer_email': customer_email,
-                        'vehicle': vehicle,
-                        'personalized_content': self._personalize_content(
-                            campaign_content, customer, vehicle
-                        )
-                    }
-                    
-                    campaign_records.append(campaign_record)
+                    for vehicle in vehicles:
+                        if customer_id and customer_email:
+                            import uuid
+                            unique_campaign_id = str(uuid.uuid4())
+                            vehicle_id = vehicle.get('id') or vehicle.get('vehicle_id')
+                            
+                            # Insert campaign record
+                            cur.execute("""
+                                INSERT INTO campaigns (
+                                    campaign_id, vehicle_id, customer_id, campaign_type, 
+                                    campaign_title, subject_line, content, status, 
+                                    location, trigger_type
+                                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                RETURNING id
+                            """, (
+                                unique_campaign_id,
+                                vehicle_id,
+                                customer_id,
+                                campaign_type,
+                                title,
+                                subject_line,
+                                content,
+                                'created',
+                                state.get('location', 'Mumbai'),
+                                state.get('campaign_trigger', 'lifecycle')
+                            ))
+                            
+                            db_campaign_id = cur.fetchone()['id']
+                            
+                            campaign_record = {
+                                'campaign_id': unique_campaign_id,
+                                'db_id': db_campaign_id,
+                                'customer_id': customer_id,
+                                'customer_name': customer_name,
+                                'customer_email': customer_email,
+                                'vehicle': vehicle,
+                                'personalized_content': self._personalize_content(
+                                    campaign_content, customer_data, vehicle
+                                )
+                            }
+                            
+                            campaign_records.append(campaign_record)
             
             conn.commit()
             cur.close()

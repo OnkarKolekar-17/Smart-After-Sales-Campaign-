@@ -59,23 +59,38 @@ class CampaignGeneratorAgent(BaseAgent):
             # Generate multiple campaigns
             generated_campaigns = []
             
-            # 1. Weather-based campaign (if weather data available)
-            if weather_context:
-                weather_campaign = self._generate_weather_campaign(weather_context, location, targeted_customers)
-                if weather_campaign:
-                    generated_campaigns.append(weather_campaign)
+            # Prioritize lifecycle campaigns when trigger is 'lifecycle'
+            campaign_trigger = state.get('campaign_trigger', 'scheduled')
             
-            # 2. Holiday-based campaign (if holiday data available)
-            if holiday_context:
-                holiday_campaign = self._generate_holiday_campaign(holiday_context, location, targeted_customers)
-                if holiday_campaign:
-                    generated_campaigns.append(holiday_campaign)
-            
-            # 3. Lifecycle-based campaigns (from vehicle lifecycle agent)
-            for lifecycle_campaign in lifecycle_campaigns:
-                lifecycle_content = self._generate_lifecycle_campaign(lifecycle_campaign, location)
-                if lifecycle_content:
-                    generated_campaigns.append(lifecycle_content)
+            if campaign_trigger == 'lifecycle':
+                # For lifecycle trigger, generate lifecycle campaigns first
+                for lifecycle_campaign in lifecycle_campaigns:
+                    lifecycle_content = self._generate_lifecycle_campaign(lifecycle_campaign, location)
+                    if lifecycle_content:
+                        generated_campaigns.append(lifecycle_content)
+                
+                # Skip weather and holiday campaigns for lifecycle trigger
+                self._log_step(f"Lifecycle trigger: Generated {len(generated_campaigns)} service-based campaigns")
+            else:
+                # For other triggers, follow original order: weather -> holiday -> lifecycle
+                
+                # 1. Weather-based campaign (if weather data available)
+                if weather_context:
+                    weather_campaign = self._generate_weather_campaign(weather_context, location, targeted_customers)
+                    if weather_campaign:
+                        generated_campaigns.append(weather_campaign)
+                
+                # 2. Holiday-based campaign (if holiday data available)
+                if holiday_context:
+                    holiday_campaign = self._generate_holiday_campaign(holiday_context, location, targeted_customers)
+                    if holiday_campaign:
+                        generated_campaigns.append(holiday_campaign)
+                
+                # 3. Lifecycle-based campaigns (from vehicle lifecycle agent)
+                for lifecycle_campaign in lifecycle_campaigns:
+                    lifecycle_content = self._generate_lifecycle_campaign(lifecycle_campaign, location)
+                    if lifecycle_content:
+                        generated_campaigns.append(lifecycle_content)
             
             # Store all generated campaigns
             state['generated_campaigns'] = generated_campaigns

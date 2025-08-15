@@ -42,13 +42,13 @@ class CampaignWorkflow:
         workflow.add_node("email_sending", self._email_sending_node)
         workflow.add_node("finalize", self._finalize_node)
         
-        # Set entry point
-        workflow.set_entry_point("weather_analysis")
+        # Set entry point based on trigger (will be handled in run_campaign)
+        workflow.set_entry_point("customer_targeting")
         
-        # Add edges (flow between nodes)
-        workflow.add_edge("weather_analysis", "holiday_analysis")
-        workflow.add_edge("holiday_analysis", "customer_targeting")
-        workflow.add_edge("customer_targeting", "vehicle_lifecycle_analysis")
+        # Add conditional edges based on campaign trigger
+        workflow.add_edge("customer_targeting", "weather_analysis")
+        workflow.add_edge("weather_analysis", "holiday_analysis") 
+        workflow.add_edge("holiday_analysis", "vehicle_lifecycle_analysis")
         workflow.add_edge("vehicle_lifecycle_analysis", "campaign_generation")
         workflow.add_edge("campaign_generation", "email_sending")
         workflow.add_edge("email_sending", "finalize")
@@ -118,20 +118,32 @@ class CampaignWorkflow:
             )
     
     def _weather_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Weather analysis node"""
+        """Weather analysis node - skip for lifecycle campaigns"""
         state['current_step'] = 'weather_analysis'
         if 'completed_steps' not in state:
             state['completed_steps'] = []
         state['completed_steps'].append('weather_analysis')
         
+        # Skip weather analysis for lifecycle-only campaigns
+        if state.get('campaign_trigger') == 'lifecycle':
+            logger.info("Skipping weather analysis for lifecycle campaign")
+            state['weather_data'] = None
+            return state
+        
         return self.weather_agent.process(state)
     
     def _holiday_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Holiday analysis node"""
+        """Holiday analysis node - skip for lifecycle campaigns"""
         state['current_step'] = 'holiday_analysis'
         if 'completed_steps' not in state:
             state['completed_steps'] = []
         state['completed_steps'].append('holiday_analysis')
+        
+        # Skip holiday analysis for lifecycle-only campaigns  
+        if state.get('campaign_trigger') == 'lifecycle':
+            logger.info("Skipping holiday analysis for lifecycle campaign")
+            state['holiday_data'] = None
+            return state
         
         return self.holiday_agent.process(state)
     
