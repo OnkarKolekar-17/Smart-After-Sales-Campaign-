@@ -422,29 +422,26 @@ P.S. Contact us if you have any questions about your vehicle's maintenance needs
             📍 CAMPAIGN TARGET: {len(loc_customers)} customers in {loc}
             
             🎯 CREATIVE HOLIDAY CAMPAIGN MISSION:
-            Transform this holiday into an irresistible automotive service opportunity! Think like these WINNING examples:
-            
-            🌟 INSPIRATION FRAMEWORKS:
-            • Australia Day → "Celebrate with a safer ride" (Pre-road-trip inspections)
-            • Easter → "Hop into safety" (Holiday travel checks: oil, tyres, brakes)
-            • EOFY → HUGE opportunity: Service bundle discounts, parts clearance, fleet servicing
-            • Father's Day → Gift focus: Detailing packages, performance checks, "Dad's essentials"
-            • Christmas → "Service before you travel" (Long holiday prep, gift cards)
-            • School Holidays → "Adventure-ready" (Pre-travel checks, family packages)
+            Transform THIS SPECIFIC HOLIDAY into an irresistible automotive service opportunity!
             
             🚀 YOUR CAMPAIGN MUST:
-            ✨ Have a CATCHY, holiday-themed name that customers remember
-            🎁 Bundle services around specific holiday needs (travel, gifts, celebrations)
-            ❤️ Connect emotionally to holiday traditions and family safety
-            ⏰ Create urgency through holiday timing ("Before you travel", "Don't miss out")
-            💰 Offer compelling value (discounts, packages, gift opportunities)
-            🏆 Make customers think "I NEED this for [HOLIDAY]!"
+            ✨ Have a CATCHY, holiday-themed name that connects to THIS holiday's unique character
+            🎁 Bundle services around THIS holiday's specific needs (travel patterns, traditions, timing)
+            ❤️ Connect emotionally to THIS holiday's traditions and what it means to customers
+            ⏰ Create urgency through THIS holiday's timing ("Before the celebration", "Don't miss out")
+            💰 Offer compelling value that makes sense for THIS holiday
+            🏆 Make customers think "I NEED this for THIS SPECIFIC HOLIDAY!"
             
-            🎨 CREATIVE CHALLENGE:
-            Don't just offer basic maintenance - create a holiday EXPERIENCE that customers can't resist!
-            Examples: "Christmas Road Trip Hero Package", "EOFY Fleet Champion Deal", "Father's Day Garage Makeover"
+            🎨 CREATIVE PROCESS:
+            1. What makes THIS holiday special? (traditions, emotions, activities)
+            2. What vehicle needs arise from THIS holiday? (travel, weather, celebrations)
+            3. What creative angle can make maintenance exciting for THIS holiday?
+            4. How can you bundle services around THIS holiday's timing?
+            5. What memorable campaign name captures THIS holiday's spirit?
             
-            Generate ONE breakthrough campaign for {loc} that will make {len(loc_customers)} customers excited about this holiday service opportunity!
+            Don't use generic maintenance - create a holiday EXPERIENCE tailored to THIS specific celebration!
+            
+            Generate ONE breakthrough campaign for {loc} that will make {len(loc_customers)} customers excited about THIS holiday service opportunity!
             """
             
             try:

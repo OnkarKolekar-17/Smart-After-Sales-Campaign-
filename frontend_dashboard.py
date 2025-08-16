@@ -362,10 +362,9 @@ def main():
     with col2:
         st.subheader("🌤️ Weather Campaigns") 
         st.write("Multi-location weather targeting")
-        st.write("• Weather-based maintenance for all locations")
+        st.write("• Weather-based maintenance")
         st.write("• Seasonal vehicle care")
         st.write("• Climate protection tips")
-        st.write("• Processes all 9 locations automatically")
         
         if st.button("🌦️ Launch Weather Campaign",
                     disabled=st.session_state.campaign_running,
@@ -376,10 +375,9 @@ def main():
     with col3:
         st.subheader("🎉 Holiday Campaigns")
         st.write("Multi-location festival targeting")
-        st.write("• Festival travel preparation for all locations")
+        st.write("• Festival travel preparation")
         st.write("• Holiday vehicle checks")
         st.write("• Special occasion care")
-        st.write("• Processes all 9 locations automatically")
         
         if st.button("🎊 Launch Holiday Campaign",
                     disabled=st.session_state.campaign_running,
@@ -391,10 +389,6 @@ def main():
     # Campaign Execution Results
     if st.session_state.last_execution_result:
         display_execution_results(st.session_state.last_execution_result)
-    
-    # Sample Campaigns Section
-    st.header("📝 Sample Campaign Preview")
-    display_sample_campaigns()
     
     # Analytics Dashboard
     st.header("📈 Campaign Analytics")
@@ -466,6 +460,44 @@ def display_execution_results(execution_data: Dict):
                     st.write(f"� {customer['location']}")
         else:
             st.info("No customer details available for this campaign.")
+        
+        # Display the actual campaign content that was generated
+        st.write("---")
+        st.write("📧 **Campaign Content Generated:**")
+        
+        # Get and display the latest campaign content
+        try:
+            conn = DatabaseConnection.get_connection()
+            cur = conn.cursor()
+            
+            # Get the most recent campaign for this trigger type
+            cur.execute("""
+                SELECT DISTINCT ON (campaign_type) 
+                    campaign_type, campaign_title, content, subject_line, created_at
+                FROM campaigns
+                WHERE trigger_type = %s
+                ORDER BY campaign_type, created_at DESC
+            """, (trigger_type,))
+            
+            campaign_result = cur.fetchone()
+            conn.close()
+            
+            if campaign_result:
+                campaign_type, campaign_title, content, subject_line, created_at = campaign_result
+                emoji = {"holiday": "🎉", "weather": "🌤️", "lifecycle": "🔄"}.get(campaign_type, "📝")
+                
+                with st.expander(f"{emoji} **{campaign_type.title()} Campaign Content**", expanded=True):
+                    st.write(f"**📬 Subject:** {subject_line}")
+                    if campaign_title:
+                        st.write(f"**📝 Title:** {campaign_title}")
+                    st.write("**💬 Content:**")
+                    st.write(content)
+                    st.caption(f"Generated: {created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            else:
+                st.info("No campaign content found for this execution.")
+                
+        except Exception as e:
+            st.error(f"Error fetching campaign content: {e}")
         
         st.caption(f"Executed at: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
         
@@ -568,6 +600,43 @@ def display_sample_campaigns():
                     st.write(f"**Created:** {holiday_sample['created_at'].strftime('%Y-%m-%d %H:%M')}")
         else:
             st.info("No holiday campaign samples available.")
+
+def display_current_campaign_content():
+    """Display the actual current campaign content generated in the latest execution"""
+    try:
+        conn = DatabaseConnection.get_connection()
+        cur = conn.cursor()
+        
+        # Get the most recent campaign for each type (just one per type)
+        cur.execute("""
+            SELECT DISTINCT ON (campaign_type) 
+                campaign_type, campaign_title, content, subject_line, created_at
+            FROM campaigns
+            ORDER BY campaign_type, created_at DESC
+        """)
+        
+        current_campaigns = cur.fetchall()
+        conn.close()
+        
+        if not current_campaigns:
+            st.info("🔍 No campaigns found in database. Run a campaign execution to see generated content here!")
+            return
+        
+        st.write("📧 **Latest Generated Campaigns:**")
+        
+        for campaign_type, campaign_title, content, subject_line, created_at in current_campaigns:
+            # Get the emoji for campaign type
+            emoji = {"holiday": "🎉", "weather": "🌤️", "lifecycle": "🔄"}.get(campaign_type, "📝")
+            
+            with st.expander(f"{emoji} **{campaign_type.title()} Campaign**"):
+                st.write(f"**📬 Subject:** {subject_line}")
+                st.write(f"**📝 Title:** {campaign_title}")
+                st.write("**💬 Content:**")
+                st.write(content)
+                st.caption(f"Generated: {created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+                
+    except Exception as e:
+        st.error(f"Error fetching current campaigns: {str(e)}")
 
 def display_analytics_dashboard(stats: Dict):
     """Display analytics charts and insights"""
