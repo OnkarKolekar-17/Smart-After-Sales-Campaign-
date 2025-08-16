@@ -49,7 +49,7 @@ class EmailSenderAgent(BaseAgent):
         """
     
     def process(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Process email sending for multiple targeted campaigns"""
+        """Process email sending for multiple targeted campaigns - HANDLES GROUP WISE CAMPAIGNS"""
         try:
             self._log_step("Starting comprehensive email campaign execution")
             
@@ -68,26 +68,86 @@ class EmailSenderAgent(BaseAgent):
                 for campaign in generated_campaigns:
                     self._log_step(f"Processing campaign: {campaign.get('title', 'Unknown')}")
                     
-                    # Get targeted customers for this specific campaign
-                    target_customers = campaign.get('target_customers', customer_segments)
+                    # Check if this is a GROUP WISE campaign (has campaigns_by_location)
+                    if 'campaigns_by_location' in campaign:
+                        # Handle GROUP WISE campaigns (holiday/weather)
+                        llm_campaigns_generated = len(campaign['campaigns_by_location'])
+                        total_customers = sum(len(loc_campaign.get('target_customers', [])) for loc_campaign in campaign['campaigns_by_location'].values())
+                        
+                        self._log_step(f"🎯 GROUP WISE OPTIMIZATION: Generated {llm_campaigns_generated} LLM campaigns for {total_customers} customers")
+                        self._log_step(f"💰 TOKEN SAVINGS: Reduced from {total_customers} to {llm_campaigns_generated} LLM calls!")
+                        
+                        for location, location_campaign in campaign['campaigns_by_location'].items():
+                            customers_in_location = len(location_campaign.get('target_customers', []))
+                            self._log_step(f"📧 Sending to {customers_in_location} customers in {location}")
+                            
+                            # Create campaign records for this location
+                            campaign_records = self._create_campaign_records(
+                                location_campaign.get('target_customers', []), location_campaign, state
+                            )
+                            
+                            # Send emails for this location campaign
+                            sent_campaigns = self._send_email_batch(
+                                campaign_records, location_campaign
+                            )
+                            
+                            all_campaign_records.extend(campaign_records)
+                            all_sent_campaigns.extend(sent_campaigns)
+                            total_created += len(campaign_records)
+                            total_sent += len(sent_campaigns)
+                            
+                            self._log_step(f"✅ Location {location}: {len(campaign_records)} database records, {len(sent_campaigns)} emails sent")
                     
-                    if target_customers:
-                        # Create campaign records for this specific campaign
-                        campaign_records = self._create_campaign_records(
-                            target_customers, campaign, state
-                        )
+                    elif 'campaigns_by_service_type' in campaign:
+                        # Handle GROUP WISE LIFECYCLE campaigns (by service type)
+                        llm_campaigns_generated = len(campaign['campaigns_by_service_type'])
+                        total_customers = sum(len(service_campaign.get('target_customers', [])) for service_campaign in campaign['campaigns_by_service_type'].values())
                         
-                        # Send emails for this campaign
-                        sent_campaigns = self._send_email_batch(
-                            campaign_records, campaign
-                        )
+                        self._log_step(f"🔧 GROUP WISE LIFECYCLE OPTIMIZATION: Generated {llm_campaigns_generated} LLM campaigns for {total_customers} customers")
+                        self._log_step(f"💰 TOKEN SAVINGS: Reduced from {total_customers} to {llm_campaigns_generated} LLM calls!")
                         
-                        all_campaign_records.extend(campaign_records)
-                        all_sent_campaigns.extend(sent_campaigns)
-                        total_created += len(campaign_records)
-                        total_sent += len(sent_campaigns)
+                        for service_type, service_campaign in campaign['campaigns_by_service_type'].items():
+                            customers_in_service = len(service_campaign.get('target_customers', []))
+                            self._log_step(f"🔧 Sending to {customers_in_service} customers needing {service_type}")
+                            
+                            # Create campaign records for this service type
+                            campaign_records = self._create_campaign_records(
+                                service_campaign.get('target_customers', []), service_campaign, state
+                            )
+                            
+                            # Send emails for this service type campaign
+                            sent_campaigns = self._send_email_batch(
+                                campaign_records, service_campaign
+                            )
+                            
+                            all_campaign_records.extend(campaign_records)
+                            all_sent_campaigns.extend(sent_campaigns)
+                            total_created += len(campaign_records)
+                            total_sent += len(sent_campaigns)
+                            
+                            self._log_step(f"✅ Service Type {service_type}: {len(campaign_records)} database records, {len(sent_campaigns)} emails sent")
+                    
+                    else:
+                        # Handle INDIVIDUAL campaigns (old format)
+                        target_customers = campaign.get('target_customers', customer_segments)
                         
-                        self._log_step(f"Campaign '{campaign.get('title')}': {len(campaign_records)} created, {len(sent_campaigns)} sent")
+                        if target_customers:
+                            # Create campaign records for this specific campaign
+                            campaign_records = self._create_campaign_records(
+                                target_customers, campaign, state
+                            )
+                            
+                            # Send emails for this campaign
+                            sent_campaigns = self._send_email_batch(
+                                campaign_records, campaign
+                            )
+                            
+                            all_campaign_records.extend(campaign_records)
+                            all_sent_campaigns.extend(sent_campaigns)
+                            total_created += len(campaign_records)
+                            total_sent += len(sent_campaigns)
+                            
+                            self._log_step(f"📧 Campaign '{campaign.get('title')}': {len(campaign_records)} database records, {len(sent_campaigns)} emails sent")
             
             # Fallback to single campaign if no multiple campaigns
             elif campaign_content and customer_segments:
@@ -108,7 +168,31 @@ class EmailSenderAgent(BaseAgent):
             state['total_created'] = total_created
             state['total_sent'] = total_sent
             
-            self._log_step(f"Email campaign execution completed: {total_created} campaigns created, {total_sent} emails sent")
+            # Calculate LLM savings for GROUP WISE campaigns
+            llm_campaigns_used = 0
+            total_customers = total_created
+            
+            for campaign in generated_campaigns:
+                if 'campaigns_by_location' in campaign:
+                    # Location-based grouping (weather/holiday)
+                    llm_campaigns_used += len(campaign['campaigns_by_location'])
+                elif 'campaigns_by_service_type' in campaign:
+                    # Service type-based grouping (lifecycle)
+                    llm_campaigns_used += len(campaign['campaigns_by_service_type'])
+                else:
+                    # Individual campaigns (old format)
+                    llm_campaigns_used += len(campaign.get('target_customers', []))
+            
+            if llm_campaigns_used > 0 and llm_campaigns_used < total_customers:
+                savings_percent = round(((total_customers - llm_campaigns_used) / total_customers) * 100)
+                self._log_step(f"💡 OPTIMIZATION SUMMARY:")
+                self._log_step(f"   📊 Database Records Created: {total_created}")
+                self._log_step(f"   🤖 LLM Campaigns Generated: {llm_campaigns_used}")
+                self._log_step(f"   💰 Token Savings: {savings_percent}% ({total_customers - llm_campaigns_used} fewer LLM calls)")
+            else:
+                self._log_step(f"📊 Campaign execution completed: {total_created} database records created, {total_sent} emails sent")
+            
+            self._log_step(f"✅ Email campaign execution completed successfully")
             
         except Exception as e:
             return self._handle_error(e, state)
