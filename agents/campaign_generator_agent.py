@@ -311,61 +311,167 @@ P.S. Contact us if you have any questions about your vehicle's maintenance needs
 """
     
     def _generate_weather_campaign(self, weather_data: Dict, location: str, customers: List) -> Dict[str, Any]:
-        """Generate weather-specific campaign content"""
+        """Generate weather-specific campaign content - GROUP WISE by location"""
         
-        context = f"""
-        Generate a weather-based vehicle service campaign for {location}.
+        # Group customers by their preferred location (GROUP WISE APPROACH)
+        location_groups = {}
+        for customer in customers:
+            cust_location = customer.preferred_location or 'Unknown'
+            if cust_location not in location_groups:
+                location_groups[cust_location] = []
+            location_groups[cust_location].append(customer)
         
-        Weather Context:
-        - Temperature: {weather_data.get('temperature', 'N/A')}°C
-        - Condition: {weather_data.get('condition', 'N/A')}
-        - Description: {weather_data.get('description', 'N/A')}
-        - Recommendation: {weather_data.get('recommendation', 'N/A')}
+        # Generate one campaign per location group (SAVE TOKENS!)
+        campaigns_by_location = {}
+        total_campaigns_created = 0
         
-        Create a campaign that addresses vehicle needs based on current weather conditions.
-        Target customers: {len(customers)} customers in {location}
+        for loc, loc_customers in location_groups.items():
+            self._log_step(f"Creating 1 weather campaign for {len(loc_customers)} customers in {loc}")
+            
+            context = f"""
+            Create an innovative, compelling weather-based automotive service campaign for {loc}.
+            
+            🌡️ CURRENT WEATHER INTELLIGENCE:
+            - Temperature: {weather_data.get('temperature', 'N/A')}°C
+            - Condition: {weather_data.get('condition', 'N/A')}
+            - Description: {weather_data.get('description', 'N/A')}
+            - Weather Impact: {weather_data.get('recommendation', 'N/A')}
+            
+            📍 LOCATION CONTEXT: {loc}
+            👥 TARGET AUDIENCE: {len(loc_customers)} vehicle owners in {loc}
+            
+            🎨 CREATIVE BRIEF:
+            You are tasked with creating a breakthrough weather-driven campaign that goes beyond basic maintenance suggestions. Think like the examples:
+            
+            INSPIRATION EXAMPLES:
+            • "Desert Storm Protection Package" (for hot weather)
+            • "Monsoon Warrior Shield" (for rainy conditions) 
+            • "Frost Fighter Premium" (for cold weather)
+            • "Storm Survivor Special" (for extreme conditions)
+            
+            Your mission: Create a campaign that:
+            ✨ Has a memorable, weather-themed name
+            🎯 Addresses hidden customer pain points related to this weather
+            💡 Offers unexpected value bundling 
+            🔥 Creates genuine urgency through weather timing
+            ❤️ Connects emotionally with customer lifestyle needs
+            🚗 Transforms weather challenges into vehicle care opportunities
+            
+            Think beyond "AC service for summer" - be creative like:
+            • "Family Road Trip Safety Shield" (summer)
+            • "Visibility Master Package" (monsoon)  
+            • "Zero-Degree Hero Program" (winter)
+            • "Perfect Day Prep Service" (mild weather)
+            
+            Generate ONE highly creative campaign for {loc} that will wow {len(loc_customers)} customers with its innovation and relevance to their current weather experience.
+            """
+            
+            try:
+                response = self._invoke_llm(context + self._get_campaign_format_instructions())
+                campaign_data = json.loads(response)
+                campaign_data['campaign_type'] = 'weather'
+                campaign_data['location'] = loc
+                campaign_data['target_customers'] = loc_customers
+                campaigns_by_location[loc] = campaign_data
+                total_campaigns_created += 1
+                
+            except Exception as e:
+                self._log_step(f"LLM failed for {loc}, using fallback", "warning")
+                fallback_campaign = self._create_weather_fallback_campaign(weather_data, loc, loc_customers)
+                campaigns_by_location[loc] = fallback_campaign
+                total_campaigns_created += 1
         
-        Focus on weather-related vehicle maintenance needs, seasonal preparations, and safety considerations.
-        """
+        self._log_step(f"GROUP WISE: Created {total_campaigns_created} campaigns for {len(location_groups)} locations (saved {len(customers) - total_campaigns_created} LLM calls!)")
         
-        try:
-            response = self._invoke_llm(context + self._get_campaign_format_instructions())
-            campaign_data = json.loads(response)
-            campaign_data['campaign_type'] = 'weather'
-            campaign_data['target_customers'] = [c for c in customers]
-            return campaign_data
-        except:
-            return self._create_weather_fallback_campaign(weather_data, location, customers)
+        # Return all location-based campaigns
+        return {
+            'campaign_type': 'weather',
+            'campaigns_by_location': campaigns_by_location,
+            'total_locations': len(location_groups),
+            'total_customers': len(customers),
+            'total_campaigns_created': total_campaigns_created
+        }
     
     def _generate_holiday_campaign(self, holiday_data: Dict, location: str, customers: List) -> Dict[str, Any]:
-        """Generate holiday-specific campaign content"""
+        """Generate holiday-specific campaign content - GROUP WISE by location"""
         
-        context = f"""
-        Generate a holiday-based vehicle service campaign for {location}.
+        # Group customers by their preferred location (GROUP WISE APPROACH)
+        location_groups = {}
+        for customer in customers:
+            cust_location = customer.preferred_location or 'Unknown'
+            if cust_location not in location_groups:
+                location_groups[cust_location] = []
+            location_groups[cust_location].append(customer)
         
-        Holiday Context:
-        - Holiday: {holiday_data.get('name', 'N/A')}
-        - Date: {holiday_data.get('date', 'N/A')}
-        - Type: {holiday_data.get('type', 'N/A')}
-        - Cultural Significance: {holiday_data.get('cultural_significance', 'N/A')}
+        # Generate one campaign per location group (SAVE TOKENS!)
+        campaigns_by_location = {}
+        total_campaigns_created = 0
         
-        Create a campaign that connects the holiday celebration with vehicle care needs.
-        Target customers: {len(customers)} customers in {location}
+        for loc, loc_customers in location_groups.items():
+            self._log_step(f"Creating 1 holiday campaign for {len(loc_customers)} customers in {loc}")
+            
+            context = f"""
+            Create a BREAKTHROUGH holiday automotive service campaign for {loc}.
+            
+            🎉 HOLIDAY INTELLIGENCE:
+            - Holiday: {holiday_data.get('name', 'N/A')}
+            - Date: {holiday_data.get('date', 'N/A')}
+            - Type: {holiday_data.get('type', 'N/A')}
+            - Cultural Significance: {holiday_data.get('cultural_significance', 'N/A')}
+            
+            📍 CAMPAIGN TARGET: {len(loc_customers)} customers in {loc}
+            
+            🎯 CREATIVE HOLIDAY CAMPAIGN MISSION:
+            Transform THIS SPECIFIC HOLIDAY into an irresistible automotive service opportunity!
+            
+            🚀 YOUR CAMPAIGN MUST:
+            ✨ Have a CATCHY, holiday-themed name that connects to THIS holiday's unique character
+            🎁 Bundle services around THIS holiday's specific needs (travel patterns, traditions, timing)
+            ❤️ Connect emotionally to THIS holiday's traditions and what it means to customers
+            ⏰ Create urgency through THIS holiday's timing ("Before the celebration", "Don't miss out")
+            💰 Offer compelling value that makes sense for THIS holiday
+            🏆 Make customers think "I NEED this for THIS SPECIFIC HOLIDAY!"
+            
+            🎨 CREATIVE PROCESS:
+            1. What makes THIS holiday special? (traditions, emotions, activities)
+            2. What vehicle needs arise from THIS holiday? (travel, weather, celebrations)
+            3. What creative angle can make maintenance exciting for THIS holiday?
+            4. How can you bundle services around THIS holiday's timing?
+            5. What memorable campaign name captures THIS holiday's spirit?
+            
+            Don't use generic maintenance - create a holiday EXPERIENCE tailored to THIS specific celebration!
+            
+            Generate ONE breakthrough campaign for {loc} that will make {len(loc_customers)} customers excited about THIS holiday service opportunity!
+            """
+            
+            try:
+                response = self._invoke_llm(context + self._get_campaign_format_instructions())
+                campaign_data = json.loads(response)
+                campaign_data['campaign_type'] = 'holiday'
+                campaign_data['location'] = loc
+                campaign_data['target_customers'] = loc_customers
+                campaigns_by_location[loc] = campaign_data
+                total_campaigns_created += 1
+                
+            except Exception as e:
+                self._log_step(f"LLM failed for {loc}, using fallback", "warning")
+                fallback_campaign = self._create_holiday_fallback_campaign(holiday_data, loc, loc_customers)
+                campaigns_by_location[loc] = fallback_campaign
+                total_campaigns_created += 1
         
-        Focus on holiday travel preparation, family safety, and celebration-related vehicle needs.
-        """
+        self._log_step(f"GROUP WISE: Created {total_campaigns_created} campaigns for {len(location_groups)} locations (saved {len(customers) - total_campaigns_created} LLM calls!)")
         
-        try:
-            response = self._invoke_llm(context + self._get_campaign_format_instructions())
-            campaign_data = json.loads(response)
-            campaign_data['campaign_type'] = 'holiday'
-            campaign_data['target_customers'] = [c for c in customers]
-            return campaign_data
-        except:
-            return self._create_holiday_fallback_campaign(holiday_data, location, customers)
+        # Return all location-based campaigns
+        return {
+            'campaign_type': 'holiday',
+            'campaigns_by_location': campaigns_by_location,
+            'total_locations': len(location_groups),
+            'total_customers': len(customers),
+            'total_campaigns_created': total_campaigns_created
+        }
     
     def _generate_lifecycle_campaign(self, lifecycle_data: Dict, location: str) -> Dict[str, Any]:
-        """Generate lifecycle-specific campaign content"""
+        """Generate lifecycle-specific campaign content with GROUP WISE OPTIMIZATION"""
         
         segment = lifecycle_data.get('segment', 'general')
         campaign_type = lifecycle_data.get('campaign_type', 'lifecycle')
@@ -373,29 +479,85 @@ P.S. Contact us if you have any questions about your vehicle's maintenance needs
         benefits = lifecycle_data.get('benefits', [])
         title = lifecycle_data.get('title', 'Vehicle Service Campaign')
         
-        context = f"""
-        Generate a vehicle lifecycle-based campaign for {location}.
+        # GROUP WISE OPTIMIZATION: Group customers by service type instead of location
+        campaigns_by_service_type = {}
         
-        Lifecycle Context:
-        - Campaign Type: {campaign_type}
-        - Customer Segment: {segment}
-        - Title: {title}
-        - Benefits: {', '.join(benefits) if benefits else 'N/A'}
-        - Target Customers: {len(target_customers)} customers
+        for customer_data in target_customers:
+            # Extract service type from customer data (priority order)
+            service_type = 'General Service'  # Default
+            
+            if isinstance(customer_data, dict):
+                if 'service_type' in customer_data:
+                    service_type = customer_data['service_type']
+                elif 'segment' in customer_data:
+                    service_type = customer_data['segment']
+                elif campaign_type:
+                    service_type = campaign_type.title()
+            
+            # Group customers by service type
+            if service_type not in campaigns_by_service_type:
+                campaigns_by_service_type[service_type] = {
+                    'target_customers': [],
+                    'service_type': service_type,
+                    'campaign_type': campaign_type,
+                    'segment': segment
+                }
+            
+            campaigns_by_service_type[service_type]['target_customers'].append(customer_data)
         
-        Create a campaign that addresses specific vehicle lifecycle needs for this customer segment.
-        Focus on the benefits and urgency appropriate for their vehicle's stage of life.
-        """
+        # Generate ONE campaign per service type (instead of per customer)
+        total_customers = len(target_customers)
+        total_service_types = len(campaigns_by_service_type)
         
-        try:
-            response = self._invoke_llm(context + self._get_campaign_format_instructions())
-            campaign_data = json.loads(response)
-            campaign_data['campaign_type'] = campaign_type
-            campaign_data['segment'] = segment
-            campaign_data['target_customers'] = target_customers
-            return campaign_data
-        except:
-            return self._create_lifecycle_fallback_campaign(lifecycle_data, location)
+        self._log_step(f"🎯 GROUP WISE LIFECYCLE OPTIMIZATION: {total_customers} customers grouped into {total_service_types} service types")
+        self._log_step(f"💰 TOKEN SAVINGS: Reduced from {total_customers} to {total_service_types} LLM calls!")
+        
+        # Generate content for each service type group
+        for service_type, service_group in campaigns_by_service_type.items():
+            customers_in_group = len(service_group['target_customers'])
+            self._log_step(f"🔧 Generating campaign for '{service_type}' service type ({customers_in_group} customers)")
+            
+            context = f"""
+            Generate a vehicle lifecycle-based campaign for {location}.
+            
+            Lifecycle Context:
+            - Service Type: {service_type}
+            - Campaign Type: {campaign_type}
+            - Customer Segment: {segment}
+            - Title: {title}
+            - Benefits: {', '.join(benefits) if benefits else 'N/A'}
+            - Target Customers: {customers_in_group} customers with {service_type} needs
+            
+            Create a campaign that addresses specific '{service_type}' needs for this customer segment.
+            Focus on the benefits and urgency appropriate for their vehicle's service requirements.
+            Use language that resonates with customers who need {service_type}.
+            """
+            
+            try:
+                response = self._invoke_llm(context + self._get_campaign_format_instructions())
+                campaign_data = json.loads(response)
+                campaign_data['campaign_type'] = campaign_type
+                campaign_data['segment'] = segment
+                campaign_data['service_type'] = service_type
+                
+                # Store the generated campaign content for this service type
+                service_group.update(campaign_data)
+                
+            except Exception as e:
+                self._log_step(f"❌ LLM generation failed for {service_type}, using fallback")
+                fallback = self._create_lifecycle_fallback_campaign(lifecycle_data, location)
+                service_group.update(fallback)
+        
+        # Return the group-wise campaign structure
+        return {
+            'title': title,
+            'campaign_type': campaign_type,
+            'segment': segment,
+            'campaigns_by_service_type': campaigns_by_service_type,
+            'total_service_types': total_service_types,
+            'total_customers': total_customers,
+            'optimization_type': 'service_type_based'
+        }
     
     def _get_campaign_format_instructions(self) -> str:
         """Get format instructions for campaign generation"""

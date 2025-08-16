@@ -127,7 +127,7 @@ INSERT INTO customers (name, email, phone, preferred_location) VALUES
 ('Kavita Agarwal', 'kavita.agarwal@example.com', '+919876543217', 'Mumbai'),
 ('Suresh Verma', 'suresh.verma@example.com', '+919876543218', 'Kolkata'),
 ('Meera Jain', 'meera.jain@example.com', '+919876543219', 'Ahmedabad'),
-('Anil Bansal', 'anil.bansal@example.com', '+919876543220', 'Mumbai'),
+('Anil Bansal', 'onkar.kolekar23@vit.edu', '+919876543220', 'Mumbai'),
 ('Pooja Malhotra', 'pooja.malhotra@example.com', '+919876543221', 'Delhi'),
 ('Deepak Chopra', 'deepak.chopra@example.com', '+919876543222', 'Bangalore'),
 ('Sita Saxena', 'sita.saxena@example.com', '+919876543223', 'Mumbai'),
